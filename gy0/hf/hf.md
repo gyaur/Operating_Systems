@@ -1,0 +1,1 @@
+# szövegben keres szöveget és kicsréli másra
