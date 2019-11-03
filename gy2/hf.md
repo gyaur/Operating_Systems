@@ -1,0 +1,1 @@
+## külön signál küldése egsyzerre

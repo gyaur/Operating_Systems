@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 void handler(int signumber){
   printf("Signal with number %i has arrived\n",signumber);
