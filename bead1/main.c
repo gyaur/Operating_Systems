@@ -201,6 +201,8 @@ int main() {
   int ind;
   struct List tourists;
   readfile(&tourists, "file");
+  // tourists.size = 0;
+  // writefile(tourists, "file");
   printf("Tourist database\n");
   while (1) {
     switch (select_action()) {
@@ -235,6 +237,7 @@ int main() {
       list_tourists_at(tourists, ind);
       break;
     case 6:
+      writefile(tourists, "file");
       return 0;
       break;
     default:
