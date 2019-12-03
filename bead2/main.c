@@ -12,15 +12,8 @@ const char *transp[] = {"Bus", "Boat", "Plane"};
 const char *properties[] = {"Name", "Phone number", "Age", "Location",
                             "Transport"};
 const int rescue_minimum[] = {1, 2, 3, 2, 2};
-int rescue_arrived = 0;
-int rescue_done = 0;
 
-void handler(int sig) {
-  if (sig == SIGUSR1)
-    rescue_arrived = 1;
-  else
-    rescue_done = 1;
-}
+void handler(int sig) {}
 
 struct Tourist {
   char name[40];
@@ -117,6 +110,10 @@ int count_tourists_at(enum Locations loc, struct List t) {
   }
   return count;
 }
+void clean_buffer() {
+  char string[2];
+  fgets(string, 2, stdin);
+}
 
 int select_action() {
   printf("Select action:\n");
@@ -126,10 +123,11 @@ int select_action() {
   printf("4: List tourists\n");
   printf("5: List tourists at a specific location\n");
   printf("6: Start rescue\n");
-  printf("7: Exit\n");
+  printf("7: Save and exit\n");
   printf("Index of selected action [1-6]: ");
   int ret;
   scanf("%d", &ret);
+  clean_buffer();
   return ret;
 }
 
@@ -139,9 +137,9 @@ struct Tourist build_tourist() {
   int age;
   enum Locations loc;
   enum Transport transport;
-
+  fflush(stdin);
   printf("Name: ");
-  scanf("%s", name);
+  scanf("%[^\n]s", name);
 
   printf("\nPhone number: ");
   scanf("%s", phone);
@@ -187,8 +185,9 @@ void modify_tourist(struct List *tourists, int index) {
     scanf("%i", &prop);
     switch (prop) {
     case 0:
+      clean_buffer();
       printf("New name: ");
-      scanf("%s", name);
+      scanf("%[^\n]s", name);
       strcpy(t->name, name);
       break;
     case 1:
@@ -289,7 +288,10 @@ int main() {
       break;
     }
 
-    int l = check_rescue(tourists);
+    enum Locations l = check_rescue(tourists);
+    if (l == -1 && rescue == 1) {
+      printf("Need more people to start a rescue\n");
+    }
     if (l != -1 && rescue) {
       printf("Looking for people to rescue\n");
       printf("Starting rescue in %s:\n", locs[l]);
@@ -314,11 +316,12 @@ int main() {
         struct List tourists;
         read(pipefd[0], &loc, sizeof(loc));
         read(pipefd[0], &tourists, sizeof(tourists));
-        // remove rescued tourists
 
         printf("Rescued:\n");
         list_tourists_at(tourists, loc);
         remove_tourists_at(&tourists, loc);
+        // remove rescued tourists
+
         write(pipefd[1], &tourists, sizeof(tourists));
         close(pipefd[1]);
         close(pipefd[0]);
