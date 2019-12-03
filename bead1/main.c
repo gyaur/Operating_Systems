@@ -60,7 +60,7 @@ void list(const char **arr) {
 void remove_tourist(struct List *tourists, unsigned int index) {
   if (tourists->size > 0 && index >= 0 && index < tourists->size) {
     tourists->size -= 1;
-    tourists->list[index] = tourists->list[tourists->size - 1];
+    tourists->list[index] = tourists->list[tourists->size];
   }
 }
 void add_tourist(struct List *tourists, struct Tourist t) {
