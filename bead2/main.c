@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -12,6 +14,11 @@ const char *transp[] = {"Bus", "Boat", "Plane"};
 const char *properties[] = {"Name", "Phone number", "Age", "Location",
                             "Transport"};
 const int rescue_minimum[] = {1, 2, 3, 2, 2};
+
+struct uzenet {
+  long mtype; // ez egy szabadon hasznalhato ertek, pl uzenetek osztalyozasara
+  int sum;
+};
 
 void handler(int sig) {}
 
@@ -27,6 +34,34 @@ struct List {
   struct Tourist list[100];
   int size;
 };
+
+int send(int uzenetsor, int sum) {
+  const struct uzenet uz = {5, sum};
+  int status;
+
+  status = msgsnd(uzenetsor, &uz, sizeof(int), 0);
+  // a 3. param ilyen is lehet: sizeof(uz.mtext)
+  // a 4. parameter gyakran IPC_NOWAIT, ez a 0-val azonos
+  if (status < 0)
+    perror("msgsnd");
+  return 0;
+}
+
+int receive(int uzenetsor, enum Locations loc) {
+  struct uzenet uz;
+  int status;
+  // az utolso parameter(0) az uzenet azonositoszama
+  // ha az 0, akkor a sor elso uzenetet vesszuk ki
+  // ha >0 (5), akkor az 5-os uzenetekbol a kovetkezot
+  // vesszuk ki a sorbol
+  status = msgrcv(uzenetsor, &uz, sizeof(int), 5, 0);
+
+  if (status < 0)
+    return -1;
+  else
+    printf("Saved %i people from %s \n", uz.sum, locs[loc]);
+  return 0;
+}
 
 void readfile(struct List *to, char *fname) {
   FILE *f;
@@ -122,8 +157,7 @@ int select_action() {
   printf("3: Modify tourist\n");
   printf("4: List tourists\n");
   printf("5: List tourists at a specific location\n");
-  printf("6: Start rescue\n");
-  printf("7: Save and exit\n");
+  printf("6: Save and exit\n"); // remove this
   printf("Index of selected action [1-6]: ");
   int ret;
   scanf("%d", &ret);
@@ -243,9 +277,10 @@ int main() {
   // tourists.size = 0;
   // writefile(tourists, "file");
   printf("Tourist database\n");
+  int selected;
   while (1) {
-    int rescue = 0;
-    switch (select_action()) {
+    selected = select_action();
+    switch (selected) {
     case 1:
       add_tourist(&tourists, build_tourist());
       break;
@@ -277,9 +312,6 @@ int main() {
       list_tourists_at(tourists, ind);
       break;
     case 6:
-      rescue = 1;
-      break;
-    case 7:
       writefile(tourists, "file");
       return 0;
       break;
@@ -289,10 +321,10 @@ int main() {
     }
 
     enum Locations l = check_rescue(tourists);
-    if (l == -1 && rescue == 1) {
+    if (l == -1 && selected == 1) {
       printf("Need more people to start a rescue\n");
     }
-    if (l != -1 && rescue) {
+    if (l != -1 && selected == 1) {
       printf("Looking for people to rescue\n");
       printf("Starting rescue in %s:\n", locs[l]);
       signal(SIGUSR1, handler);
@@ -303,6 +335,12 @@ int main() {
       if (pipe(pipefd) == -1) {
         perror("Hiba a pipe nyitaskor!");
         exit(EXIT_FAILURE);
+      }
+      int uzenetsor;
+      uzenetsor = msgget(IPC_PRIVATE, 0600 | IPC_CREAT);
+      if (uzenetsor < 0) {
+        perror("msgget");
+        return 1;
       }
       // Start rescue
       pid_t pid = fork();
@@ -317,8 +355,10 @@ int main() {
         read(pipefd[0], &loc, sizeof(loc));
         read(pipefd[0], &tourists, sizeof(tourists));
 
-        printf("Rescued:\n");
-        list_tourists_at(tourists, loc);
+        // printf("Rescued:\n");
+        // list_tourists_at(tourists, loc);
+        send(uzenetsor, count_tourists_at(loc, tourists));
+        // messagequeue : count_tourists_at
         remove_tourists_at(&tourists, loc);
         // remove rescued tourists
 
@@ -334,6 +374,7 @@ int main() {
         write(pipefd[1], &tourists, sizeof(tourists));
         pause();
         read(pipefd[0], &tourists, sizeof(tourists));
+        receive(uzenetsor, l);
       }
     }
   }
