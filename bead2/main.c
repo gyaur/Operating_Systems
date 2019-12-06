@@ -13,10 +13,10 @@ const char *locs[] = {"Bali", "Mali", "Cook Island", "Bahamas", "Iceland"};
 const char *transp[] = {"Bus", "Boat", "Plane"};
 const char *properties[] = {"Name", "Phone number", "Age", "Location",
                             "Transport"};
-const int rescue_minimum[] = {1, 2, 3, 2, 2};
+const int rescue_minimum[] = {2, 2, 3, 4, 2};
 
 struct uzenet {
-  long mtype; // ez egy szabadon hasznalhato ertek, pl uzenetek osztalyozasara
+  long mtype;
   int sum;
 };
 
@@ -40,8 +40,6 @@ int send(int uzenetsor, int sum) {
   int status;
 
   status = msgsnd(uzenetsor, &uz, sizeof(int), 0);
-  // a 3. param ilyen is lehet: sizeof(uz.mtext)
-  // a 4. parameter gyakran IPC_NOWAIT, ez a 0-val azonos
   if (status < 0)
     perror("msgsnd");
   return 0;
@@ -50,10 +48,6 @@ int send(int uzenetsor, int sum) {
 int receive(int uzenetsor, enum Locations loc) {
   struct uzenet uz;
   int status;
-  // az utolso parameter(0) az uzenet azonositoszama
-  // ha az 0, akkor a sor elso uzenetet vesszuk ki
-  // ha >0 (5), akkor az 5-os uzenetekbol a kovetkezot
-  // vesszuk ki a sorbol
   status = msgrcv(uzenetsor, &uz, sizeof(int), 5, 0);
 
   if (status < 0)
@@ -321,10 +315,10 @@ int main() {
     }
 
     enum Locations l = check_rescue(tourists);
-    if (l == -1 && selected == 1) {
+    if (l == -1 && (selected == 1 || selected == 3)) {
       printf("Need more people to start a rescue\n");
     }
-    if (l != -1 && selected == 1) {
+    if (l != -1 && (selected == 1 || selected == 3)) {
       printf("Looking for people to rescue\n");
       printf("Starting rescue in %s:\n", locs[l]);
       signal(SIGUSR1, handler);
@@ -365,7 +359,7 @@ int main() {
         write(pipefd[1], &tourists, sizeof(tourists));
         close(pipefd[1]);
         close(pipefd[0]);
-        kill(getppid(), SIGUSR1);
+        kill(getppid(), SIGUSR2);
         exit(0);
 
       } else {
@@ -375,6 +369,7 @@ int main() {
         pause();
         read(pipefd[0], &tourists, sizeof(tourists));
         receive(uzenetsor, l);
+        wait(NULL);
       }
     }
   }
