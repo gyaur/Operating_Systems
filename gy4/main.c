@@ -88,12 +88,14 @@ int main(int argc, char const *argv[]) {
 
     } else if (pid > 0) {
       // parent
+      if (i == 0) {
+        pause();
+      }
 
     } else {
       perror("fucked");
     }
   }
-  pause();
 
   close(pipefd[0]);
   int nums[count];
@@ -114,7 +116,7 @@ int main(int argc, char const *argv[]) {
     votes[i] = 0;
   }
   int vote;
-  for (int i = 0; i < NUMBER_OF_PARTIES; i++) {
+  for (int i = 0; i < count - c; i++) {
     read(pipefd3[0], &vote, sizeof(int));
     votes[vote] += 1;
   }
