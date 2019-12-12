@@ -4,6 +4,7 @@
 #include <string.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <time.h>
@@ -44,6 +45,12 @@ int send(int messagequeue, int id, int msg, int smth, char *pass) {
 }
 
 int main(int argc, char const *argv[]) {
+  srand(time(NULL));
+  if (argc <= 1) {
+    perror("fucked");
+    exit(EXIT_FAILURE);
+  }
+  int count = atoi(argv[1]);
   signal(SIGUSR1, handler);
   signal(SIGUSR2, handler);
 
@@ -63,9 +70,13 @@ int main(int argc, char const *argv[]) {
       if (i == 0) {
         // child1
         kill(getppid(), SIGUSR1);
+        struct msg a;
         // from parent
-        struct msg a = rec(messagequeue, 1);
-        printf("Child1:%i ,%i, %s\n", a.something, a.msg, a.pass);
+        for (size_t i = 0; i < count; i++) {
+          a = rec(messagequeue, 1);
+          printf("Child1:%i ,%i, %s\n", a.something, a.msg, a.pass);
+        }
+
         // from parent
         a = rec(messagequeue, 1);
         printf("Child1:%i ,%i, %s\n", a.something, a.msg, a.pass);
@@ -101,7 +112,12 @@ int main(int argc, char const *argv[]) {
   }
   // real parent code
   // to child1
-  send(messagequeue, 1, 1, 2, "----");
+  int r;
+  for (size_t i = 0; i < count; i++) {
+    r = rand();
+    send(messagequeue, 1, r, 2, "----");
+  }
+
   // to child2
   send(messagequeue, 2, 21, 58, "sad");
   // to child1
